@@ -1,0 +1,71 @@
+---
+# =========================================================================
+#  PLAYBOOK PRINCIPAL
+#  Architecture : Client -> HAProxy (443, SSL) -> 6x Nginx (80)
+#  Usage :
+#     ansible-playbook playbook.yml
+#     ansible-playbook playbook.yml --tags certs,nginx,haproxy
+#     ansible-playbook playbook.yml --tags tests -e run_failover_test=true
+# =========================================================================
+
+- name: "Phase 1 — Préparation de l'environnement"
+  hosts: docker_host
+  gather_facts: true
+  tags: [prepare]
+  tasks:
+    - name: Vérifier que Docker est installé
+      ansible.builtin.command: docker --version
+      register: docker_check
+      changed_when: false
+
+    - name: Afficher la version de Docker détectée
+      ansible.builtin.debug:
+        msg: "{{ docker_check.stdout }}"
+
+    - name: S'assurer que le module Python 'docker' (SDK) est disponible
+      ansible.builtin.command: python3 -c "import docker"
+      register: docker_sdk_check
+      changed_when: false
+      failed_when: false
+
+    - name: Avertir si le SDK Docker Python est manquant
+      ansible.builtin.debug:
+        msg: >-
+          ATTENTION : le module Python 'docker' est requis par les modules
+          community.docker.*. Installer avec : pip install docker
+      when: docker_sdk_check.rc != 0
+
+    - name: Créer les répertoires de travail générés par Ansible
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ work_dir }}"
+        - "{{ work_dir }}/certs"
+        - "{{ work_dir }}/nginx"
+        - "{{ work_dir }}/haproxy"
+
+- name: "Phase 3 — Génération des certificats SSL"
+  hosts: docker_host
+  tags: [certs, ssl]
+  roles:
+    - certs
+
+- name: "Phase 4 & 5 — Déploiement des 6 conteneurs Nginx (thème sport)"
+  hosts: docker_host
+  tags: [nginx, web]
+  roles:
+    - nginx
+
+- name: "Phase 2, 3 & 6 — Déploiement de HAProxy (SSL + reverse proxy + LB)"
+  hosts: docker_host
+  tags: [haproxy, lb]
+  roles:
+    - haproxy
+
+- name: "Phase 8 — Tests et validation"
+  hosts: docker_host
+  tags: [tests, validation]
+  roles:
+    - tests

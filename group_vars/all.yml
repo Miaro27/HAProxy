@@ -1,0 +1,56 @@
+---
+# =========================================================================
+#  Variables globales du projet DevOps : HAProxy + 6x Nginx via Ansible
+# =========================================================================
+
+project_name: "devops-lb"
+docker_network_name: "webnet"
+
+# Répertoire de travail sur le contrôleur (fichiers générés par Ansible
+# avant d'être montés en volumes dans les conteneurs)
+work_dir: "{{ playbook_dir }}/generated"
+
+# ---- HAProxy -------------------------------------------------------------
+haproxy_image: "haproxy:2.9-alpine"
+haproxy_container_name: "haproxy-lb"
+haproxy_https_port: 443
+haproxy_http_port: 80          # redirection HTTP -> HTTPS
+haproxy_stats_port: 8404       # page de stats HAProxy
+
+haproxy_config_dir: "{{ work_dir }}/haproxy"
+haproxy_cert_dir: "{{ work_dir }}/certs"
+haproxy_cert_country: "MG"
+haproxy_cert_state: "Analamanga"
+haproxy_cert_locality: "Antananarivo"
+haproxy_cert_org: "DevOps-Lab"
+haproxy_cert_cn: "lab.local"
+
+# ---- Nginx (thème "sport") -----------------------------------------------
+nginx_image: "nginx:alpine"
+nginx_config_dir: "{{ work_dir }}/nginx"
+
+webservers:
+  - name: web1
+    sport: "Football"
+    color: "#1e8449"
+    emoji: "⚽"
+  - name: web2
+    sport: "Basketball"
+    color: "#d35400"
+    emoji: "🏀"
+  - name: web3
+    sport: "Tennis"
+    color: "#f1c40f"
+    emoji: "🎾"
+  - name: web4
+    sport: "Rugby"
+    color: "#6c3483"
+    emoji: "🏉"
+  - name: web5
+    sport: "Volleyball"
+    color: "#2874a6"
+    emoji: "🏐"
+  - name: web6
+    sport: "Boxe"
+    color: "#922b21"
+    emoji: "🥊"
