@@ -1,0 +1,81 @@
+---
+# =========================================================================
+# Phase 4 & 5 — Déploiement des 6 conteneurs Nginx à partir d'un template
+#               commun + configuration nginx.conf sur le port 80
+# =========================================================================
+
+- name: Créer le réseau Docker partagé
+  community.docker.docker_network:
+    name: "{{ docker_network_name }}"
+    state: present
+
+- name: Créer les répertoires de config par serveur web (nginx.conf + html)
+  ansible.builtin.file:
+    path: "{{ nginx_config_dir }}/{{ item.name }}/html"
+    state: directory
+    mode: "0755"
+  loop: "{{ webservers }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Générer nginx.conf pour chaque serveur (template commun)
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_config_dir }}/{{ item.name }}/nginx.conf"
+    mode: "0644"
+  loop: "{{ webservers }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.name }}"
+  vars:
+    server: "{{ item }}"
+
+- name: Générer la page web thème sport de chaque serveur
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: "{{ nginx_config_dir }}/{{ item.name }}/html/index.html"
+    mode: "0644"
+  loop: "{{ webservers }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.name }}"
+  vars:
+    server: "{{ item }}"
+
+- name: Déployer et démarrer les 6 conteneurs Nginx
+  community.docker.docker_container:
+    name: "{{ item.name }}"
+    image: "{{ nginx_image }}"
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ docker_network_name }}"
+        aliases:
+          - "{{ item.name }}"
+    volumes:
+      - "{{ nginx_config_dir }}/{{ item.name }}/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "{{ nginx_config_dir }}/{{ item.name }}/html:/usr/share/nginx/html:ro"
+    comparisons:
+      "*": strict
+  loop: "{{ webservers }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Vérifier que chaque conteneur Nginx répond bien (via docker exec)
+  ansible.builtin.command: >
+    docker exec {{ item.name }} wget -q -O- http://127.0.0.1/healthz
+  register: nginx_health
+  changed_when: false
+  until: nginx_health.rc == 0
+  retries: 10
+  delay: 2
+  loop: "{{ webservers }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Afficher le résultat des health checks Nginx
+  ansible.builtin.debug:
+    msg: "{{ item.item.name }} -> {{ item.stdout }}"
+  loop: "{{ nginx_health.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"

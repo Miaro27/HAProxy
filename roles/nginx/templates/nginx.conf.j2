@@ -1,0 +1,28 @@
+worker_processes  auto;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile      on;
+
+    # {{ server.name }} — thème {{ server.sport }}
+    server {
+        listen       80;
+        server_name  {{ server.name }};
+
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.html;
+        }
+
+        # endpoint simple utilisé par le health check HAProxy
+        location /healthz {
+            return 200 "OK - {{ server.name }} ({{ server.sport }})\n";
+            add_header Content-Type text/plain;
+        }
+    }
+}
