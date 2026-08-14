@@ -5,7 +5,7 @@
 | Nom | Matricule | Classe |
 |---|---|---|
 | **Tiavina Niaina** | 228 | L2 ARS |
-| **Hariniaina** | 227 | L2 ARS |
+| **Hariniaina** | 226 | L2 ARS |
 | **Fanambinana** | 224 | L2 ARS |
 | **Hery zo** | 242 | L2 ARS |
 
