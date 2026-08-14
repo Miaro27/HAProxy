@@ -1,0 +1,50 @@
+---
+# =========================================================================
+# Phase 2, 3 & 6 — Déploiement de HAProxy avec Docker, SSL et reverse proxy
+# =========================================================================
+
+- name: Créer le répertoire de configuration HAProxy
+  ansible.builtin.file:
+    path: "{{ haproxy_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Générer haproxy.cfg (SSL + load balancing + health checks)
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: "{{ haproxy_config_dir }}/haproxy.cfg"
+    mode: "0644"
+  notify: Redémarrer HAProxy
+
+- name: S'assurer que le réseau Docker existe
+  community.docker.docker_network:
+    name: "{{ docker_network_name }}"
+    state: present
+
+- name: Déployer et démarrer le conteneur HAProxy
+  community.docker.docker_container:
+    name: "{{ haproxy_container_name }}"
+    image: "{{ haproxy_image }}"
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ docker_network_name }}"
+    ports:
+      - "{{ haproxy_http_port }}:{{ haproxy_http_port }}"
+      - "{{ haproxy_https_port }}:{{ haproxy_https_port }}"
+      - "{{ haproxy_stats_port }}:{{ haproxy_stats_port }}"
+    volumes:
+      - "{{ haproxy_config_dir }}/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro"
+      - "{{ haproxy_cert_dir }}/haproxy.pem:/usr/local/etc/haproxy/certs/haproxy.pem:ro"
+    comparisons:
+      "*": strict
+  register: haproxy_deploy
+
+- name: Vérifier que le conteneur HAProxy tourne
+  ansible.builtin.command: docker ps --filter "name={{ haproxy_container_name }}" --format "{{ '{{.Status}}' }}"
+  register: haproxy_status
+  changed_when: false
+
+- name: Afficher le statut de HAProxy
+  ansible.builtin.debug:
+    msg: "HAProxy status: {{ haproxy_status.stdout }}"

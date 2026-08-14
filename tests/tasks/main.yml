@@ -1,0 +1,104 @@
+---
+# =========================================================================
+# Phase 8 — Tests et validation de l'infrastructure complète
+# =========================================================================
+
+- name: "TEST 1 — Accès HTTPS via HAProxy (curl -k, cert auto-signé)"
+  ansible.builtin.command: >
+    curl -k -s -o /dev/null -w "%{http_code}"
+    https://127.0.0.1:{{ haproxy_https_port }}/
+  register: https_test
+  changed_when: false
+  until: https_test.stdout == "200"
+  retries: 10
+  delay: 2
+
+- name: "Résultat TEST 1"
+  ansible.builtin.debug:
+    msg: "Code HTTP HTTPS : {{ https_test.stdout }} (attendu: 200)"
+
+- name: "TEST 2 — Vérifier le certificat SSL présenté par HAProxy"
+  ansible.builtin.command: >
+    openssl s_client -connect 127.0.0.1:{{ haproxy_https_port }} -servername {{ haproxy_cert_cn }}
+  register: ssl_check
+  changed_when: false
+  failed_when: false
+
+- name: "Résultat TEST 2"
+  ansible.builtin.debug:
+    msg: "{{ 'Certificat SSL détecté OK' if 'BEGIN CERTIFICATE' in ssl_check.stdout else ssl_check.stderr }}"
+
+- name: "TEST 3 — Vérifier la répartition de charge (round robin sur 6 requêtes)"
+  ansible.builtin.command: >
+    curl -k -s https://127.0.0.1:{{ haproxy_https_port }}/
+  register: lb_test
+  changed_when: false
+  loop: "{{ range(1, 13) | list }}"
+  loop_control:
+    label: "requête {{ item }}"
+
+- name: "Résultat TEST 3 — serveurs ayant répondu"
+  ansible.builtin.debug:
+    msg: >-
+      {{ lb_test.results
+         | map(attribute='stdout')
+         | map('regex_findall', 'web[1-6]')
+         | list }}
+
+- name: "TEST 4 — Vérifier les health checks HAProxy (page stats)"
+  ansible.builtin.command: >
+    curl -s http://127.0.0.1:{{ haproxy_stats_port }}/
+  register: stats_test
+  changed_when: false
+
+- name: "Résultat TEST 4"
+  ansible.builtin.debug:
+    msg: "{{ 'Page de stats HAProxy accessible' if stats_test.rc == 0 else 'Échec accès stats' }}"
+
+- name: "TEST 5 — Couper web1 et vérifier que le service reste disponible"
+  community.docker.docker_container:
+    name: web1
+    state: stopped
+  when: run_failover_test | default(false) | bool
+
+- name: "Pause pour laisser HAProxy détecter la panne (fall 3 x inter 3s)"
+  ansible.builtin.pause:
+    seconds: 10
+  when: run_failover_test | default(false) | bool
+
+- name: "TEST 5 — Requête après coupure de web1"
+  ansible.builtin.command: >
+    curl -k -s -o /dev/null -w "%{http_code}"
+    https://127.0.0.1:{{ haproxy_https_port }}/
+  register: failover_test
+  changed_when: false
+  when: run_failover_test | default(false) | bool
+
+- name: "Résultat TEST 5"
+  ansible.builtin.debug:
+    msg: "Code HTTP après coupure de web1 : {{ failover_test.stdout }} (attendu: 200, HAProxy bascule sur les 5 autres)"
+  when: run_failover_test | default(false) | bool
+
+- name: "Redémarrer web1 (fin du test de failover)"
+  community.docker.docker_container:
+    name: web1
+    state: started
+  when: run_failover_test | default(false) | bool
+
+- name: "TEST 6 — Récupérer les derniers logs HAProxy"
+  ansible.builtin.command: docker logs --tail 20 {{ haproxy_container_name }}
+  register: haproxy_logs
+  changed_when: false
+
+- name: "Résultat TEST 6 — logs HAProxy"
+  ansible.builtin.debug:
+    var: haproxy_logs.stdout_lines
+
+- name: "TEST 6 — Récupérer les derniers logs d'un Nginx (web1)"
+  ansible.builtin.command: docker logs --tail 20 web1
+  register: nginx_logs
+  changed_when: false
+
+- name: "Résultat TEST 6 — logs Nginx (web1)"
+  ansible.builtin.debug:
+    var: nginx_logs.stdout_lines

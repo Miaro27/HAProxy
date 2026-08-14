@@ -1,0 +1,55 @@
+#---------------------------------------------------------------------------
+# haproxy.cfg généré automatiquement par Ansible — NE PAS MODIFIER À LA MAIN
+#---------------------------------------------------------------------------
+
+global
+    log stdout format raw local0
+    maxconn 4096
+
+defaults
+    log     global
+    mode    http
+    option  httplog
+    option  dontlognull
+    timeout connect 5s
+    timeout client  50s
+    timeout server  50s
+    retries 3
+
+#---------------------------------------------------------------------------
+# Frontend HTTP : redirection forcée vers HTTPS
+#---------------------------------------------------------------------------
+frontend http_front
+    bind *:{{ haproxy_http_port }}
+    mode http
+    redirect scheme https code 301 if !{ ssl_fc }
+
+#---------------------------------------------------------------------------
+# Frontend HTTPS : terminaison SSL sur le port {{ haproxy_https_port }}
+#---------------------------------------------------------------------------
+frontend https_front
+    bind *:{{ haproxy_https_port }} ssl crt /usr/local/etc/haproxy/certs/haproxy.pem
+    mode http
+    default_backend web_backend
+
+#---------------------------------------------------------------------------
+# Backend : load balancing round-robin + health checks vers les 6 Nginx
+#---------------------------------------------------------------------------
+backend web_backend
+    mode http
+    balance roundrobin
+    option httpchk GET /healthz
+    http-check expect status 200
+{% for server in webservers %}
+    server {{ server.name }} {{ server.name }}:80 check inter 3s fall 3 rise 2
+{% endfor %}
+
+#---------------------------------------------------------------------------
+# Page de statistiques HAProxy
+#---------------------------------------------------------------------------
+listen stats
+    bind *:{{ haproxy_stats_port }}
+    mode http
+    stats enable
+    stats uri /
+    stats refresh 10s
