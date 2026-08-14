@@ -7,6 +7,7 @@
 | **Tiavina Niaina** | 228 | L2 ARS |
 | **Hariniaina** | 227 | L2 ARS |
 | **Fanambinana** | 224 | L2 ARS |
+| **Hery zo** | 242 | L2 ARS |
 
 ---
 
@@ -176,6 +177,7 @@ docker start web3
 | **Hariniaina** | Architecture & Automatisation Ansible | `playbook.yml`, `group_vars/`, `ansible.cfg`, `inventory.ini`, `roles/certs/` |
 | **Tiavina Niaina** | Serveurs Web (Nginx) | `roles/nginx/` |
 | **Fanambinana** | Reverse Proxy & Tests (HAProxy) | `roles/haproxy/`, `roles/tests/` |
+**Hery Zo** |  Tests (HAProxy) | `, `roles/tests/` |mais sans compte github a planté a la dernière minute du copu fanambianana a envoyé ca partie mais il a contribué au projet
 
 ## 🧹 Nettoyage
 
