@@ -1,0 +1,11 @@
+---
+# Ce handler ne sert qu'aux exécutions ultérieures (ré-application d'un
+# playbook après modification de haproxy.cfg) : lors du tout premier
+# déploiement, le conteneur est de toute façon (re)créé avec la bonne
+# configuration par la tâche docker_container du role.
+- name: Redémarrer HAProxy
+  community.docker.docker_container:
+    name: "{{ haproxy_container_name }}"
+    state: started
+    restart: true
+  ignore_errors: true
