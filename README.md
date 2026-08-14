@@ -177,7 +177,7 @@ docker start web3
 | **Hariniaina** | Architecture & Automatisation Ansible | `playbook.yml`, `group_vars/`, `ansible.cfg`, `inventory.ini`, `roles/certs/` |
 | **Tiavina Niaina** | Serveurs Web (Nginx) | `roles/nginx/` |
 | **Fanambinana** | Reverse Proxy & Tests (HAProxy) | `roles/haproxy/`, `roles/tests/` |
-**Hery Zo** |  Tests (HAProxy) | `, `roles/tests/` |mais sans compte github a planté a la dernière minute du copu fanambianana a envoyé ca partie mais il a contribué au projet
+**Hery Zo** |  Tests (HAProxy) mais sont compte github a subi une defaillance et fanambinana a du envoyer sa partie mais il a contribué au projet  | `, `roles/tests/` |mais sans compte github a planté a la dernière minute du copu fanambianana a envoyé ca partie mais il a contribué au projet
 
 ## 🧹 Nettoyage
 
